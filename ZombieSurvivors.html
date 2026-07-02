@@ -60,6 +60,11 @@
   }
   .buyBtn:hover:not(:disabled) { background:#4c6c2c; }
   .buyBtn:disabled { opacity:.4; cursor:default; }
+  .board { border-collapse:collapse; font-size:15px; color:#b8c8a8; }
+  .board td, .board th { padding:5px 14px; text-align:left; border-bottom:1px solid #2a3a20; }
+  .board th { color:#8fa37e; font-size:12px; font-weight:normal; text-transform:uppercase; }
+  .board tr.new td { color:#f0d048; font-weight:bold; }
+  .board .rank { color:#68804f; }
   #pauseBtn {
     position:fixed; top:26px; left:8px; z-index:5; width:42px; height:42px;
     background:rgba(20,30,15,0.7); border:1px solid #4a6a34; border-radius:8px;
@@ -96,6 +101,7 @@
   <div class="coins" id="menuCoins"></div>
   <button class="btn" id="startBtn">НАЧАТЬ</button>
   <button class="btn small" onclick="openShop('menu')">💰 МАГАЗИН</button>
+  <button class="btn small" onclick="openRecords('menu')">🏆 РЕКОРДЫ</button>
   <div class="hint">WASD / стрелки — движение &nbsp;•&nbsp; P — пауза &nbsp;•&nbsp; M — звук</div>
 </div>
 
@@ -116,16 +122,15 @@
 <div id="gameover" class="overlay hidden">
   <h2 style="color:#d85040">ТЫ СТАЛ ОДНИМ ИЗ НИХ...</h2>
   <div class="stats" id="overStats"></div>
+  <div id="overBoard"></div>
   <button class="btn" id="retryBtn">ЕЩЁ РАЗ</button>
   <button class="btn small" onclick="openShop('gameover')">💰 МАГАЗИН</button>
 </div>
 
-<div id="win" class="overlay hidden">
-  <h2 style="color:#e8d878">РАССВЕТ! ТЫ ВЫЖИЛ!</h2>
-  <div class="sub">Вертолёт уносит тебя прочь от мёртвого города.</div>
-  <div class="stats" id="winStats"></div>
-  <button class="btn" id="againBtn">СЫГРАТЬ СНОВА</button>
-  <button class="btn small" onclick="openShop('win')">💰 МАГАЗИН</button>
+<div id="records" class="overlay hidden">
+  <h2>🏆 РЕКОРДЫ</h2>
+  <div id="boardList"></div>
+  <button class="btn small" id="recordsBack">НАЗАД</button>
 </div>
 
 <div id="paused" class="overlay hidden">
@@ -145,7 +150,7 @@ function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.i
 window.addEventListener('resize', resize);
 resize();
 
-const WIN_TIME = 15 * 60; // секунд до рассвета
+const DAWN_TIME = 15 * 60; // секунд до рассвета — чекпоинт, дальше бесконечность
 const rand = (a, b) => a + Math.random() * (b - a);
 const dist2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -318,7 +323,7 @@ function reset() {
   player.regen = player.metaRegen;
   enemies = []; bullets = []; gems = []; pickups = []; zones = [];
   particles = []; dnums = []; bloods = []; orbitA = 0;
-  G.time = 0; G.kills = 0; G.money = 0; G.shake = 0; G.flash = 0; G.nextBossAt = 180; G.nextHordeAt = 240; G.spawnT = 0; G.lastHurtSfx = -1;
+  G.time = 0; G.kills = 0; G.money = 0; G.shake = 0; G.flash = 0; G.nextBossAt = 180; G.nextHordeAt = 240; G.spawnT = 0; G.lastHurtSfx = -1; G.dawn = false;
 }
 
 // ============================================================ враги
@@ -616,8 +621,8 @@ function updateEnemies(dt) {
         }
       }
   }
-  const spdMul = 1 + Math.min(G.time, WIN_TIME) / 900 * 0.35; // зомби звереют со временем
-  const dmgMul = 1 + Math.min(G.time, WIN_TIME) / 900 * 0.25; // и бьют больнее
+  const spdMul = 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.35; // зомби звереют со временем (после рассвета скорость не растёт)
+  const dmgMul = 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.25; // и бьют больнее
   const repoR = Math.max(W, H) * 0.95; // отставших телепортируем вперёд по курсу
   for (const e of enemies) {
     const dx = player.x - e.x, dy = player.y - e.y;
@@ -768,7 +773,7 @@ function pickUpgrade(c) {
 // ============================================================ экраны
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
-function hideAll() { ['menu', 'levelup', 'gameover', 'win', 'paused', 'shop'].forEach(hide); }
+function hideAll() { ['menu', 'levelup', 'gameover', 'records', 'paused', 'shop'].forEach(hide); }
 
 function statsHTML() {
   const m = (G.time / 60) | 0, s = (G.time % 60) | 0;
@@ -781,15 +786,45 @@ function gameOver() {
   G.state = 'over';
   hideAll();
   hide('pauseBtn');
-  document.getElementById('overStats').innerHTML = statsHTML();
+  const rank = addScore();
+  document.getElementById('overStats').innerHTML = statsHTML() +
+    (rank === 0 ? '<br><b style="color:#f0d048">🏆 НОВЫЙ РЕКОРД!</b>' : rank > 0 ? `<br><b>#${rank + 1} в таблице рекордов</b>` : '');
+  document.getElementById('overBoard').innerHTML = boardHTML(loadBoard());
   show('gameover');
 }
-function winGame() {
-  G.state = 'win';
-  hide('pauseBtn');
-  document.getElementById('winStats').innerHTML = statsHTML();
-  show('win');
+// ============================================================ таблица рекордов (локальная)
+function loadBoard() {
+  try { return JSON.parse(localStorage.getItem('zs_board')) || []; } catch (e) { return []; }
 }
+function addScore() {
+  const board = loadBoard();
+  const entry = { t: Math.round(G.time), kills: G.kills, level: player.level, date: new Date().toISOString().slice(0, 10), isNew: true };
+  for (const b of board) delete b.isNew;
+  board.push(entry);
+  board.sort((a, b) => b.t - a.t || b.kills - a.kills);
+  board.length = Math.min(board.length, 10);
+  try { localStorage.setItem('zs_board', JSON.stringify(board)); } catch (e) {}
+  return board.indexOf(entry); // -1 если не попал в топ-10
+}
+function fmtT(t) { return `${(t / 60) | 0}:${String(t % 60).padStart(2, '0')}`; }
+function boardHTML(board) {
+  if (!board.length) return '<div class="hint">Пока пусто — стань первым!</div>';
+  let h = '<table class="board"><tr><th>#</th><th>Время</th><th>Убийств</th><th>Ур.</th><th>Дата</th></tr>';
+  board.forEach((b, i) => {
+    h += `<tr${b.isNew ? ' class="new"' : ''}><td class="rank">${i + 1}</td><td>${fmtT(b.t)}${b.t >= DAWN_TIME ? ' ☀' : ''}</td><td>${b.kills}</td><td>${b.level}</td><td>${b.date}</td></tr>`;
+  });
+  return h + '</table>';
+}
+function openRecords(from) {
+  window.recordsReturn = from;
+  hide(from);
+  document.getElementById('boardList').innerHTML = boardHTML(loadBoard());
+  show('records');
+}
+document.getElementById('recordsBack').onclick = () => {
+  hide('records');
+  show(window.recordsReturn || 'menu');
+};
 function startGame() {
   reset();
   hideAll();
@@ -803,14 +838,21 @@ function togglePause() {
 }
 document.getElementById('startBtn').onclick = startGame;
 document.getElementById('retryBtn').onclick = startGame;
-document.getElementById('againBtn').onclick = startGame;
 document.getElementById('resumeBtn').onclick = togglePause;
 document.getElementById('pauseBtn').onclick = togglePause;
 
 // ============================================================ update
 function update(dt) {
   G.time += dt;
-  if (G.time >= WIN_TIME) { winGame(); return; }
+  // рассвет — чекпоинт: бонус и дальше бесконечное выживание
+  if (!G.dawn && G.time >= DAWN_TIME) {
+    G.dawn = true;
+    const bonus = 150;
+    G.money += bonus; meta.coins += bonus; saveMeta();
+    addDnum(player.x, player.y - 70, 'РАССВЕТ! +150 💰', '#f0d048', 28);
+    addDnum(player.x, player.y - 40, 'Выживай, сколько сможешь', '#e8e8d0', 15);
+    sfx.levelup();
+  }
 
   // движение игрока
   let mx = 0, my = 0;
@@ -1107,18 +1149,18 @@ function drawHUD() {
   ctx.textAlign = 'left';
   ctx.fillText(`УР. ${player.level}`, 8, 13);
 
-  // таймер
-  const left = Math.max(0, WIN_TIME - G.time);
-  const m = (left / 60) | 0, s = (left % 60) | 0;
+  // таймер: до рассвета — обратный отсчёт, после — общее время выживания
+  const shown = G.dawn ? G.time : Math.max(0, DAWN_TIME - G.time);
+  const m = (shown / 60) | 0, s = (shown % 60) | 0;
   ctx.textAlign = 'center';
   ctx.font = 'bold 30px Verdana';
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2 + 2, 54);
-  ctx.fillStyle = left < 60 ? '#f0d858' : '#e8f0e0';
+  ctx.fillStyle = G.dawn ? '#f0d048' : (shown < 60 ? '#f0d858' : '#e8f0e0');
   ctx.fillText(`${m}:${String(s).padStart(2, '0')}`, W / 2, 52);
   ctx.font = '11px Verdana';
   ctx.fillStyle = '#8aa078';
-  ctx.fillText('до рассвета', W / 2, 68);
+  ctx.fillText(G.dawn ? '☀ выживание' : 'до рассвета', W / 2, 68);
 
   // убийства и монеты
   ctx.textAlign = 'right';

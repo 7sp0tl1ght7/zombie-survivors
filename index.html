@@ -60,6 +60,11 @@
   }
   .buyBtn:hover:not(:disabled) { background:#4c6c2c; }
   .buyBtn:disabled { opacity:.4; cursor:default; }
+  .board { border-collapse:collapse; font-size:15px; color:#b8c8a8; }
+  .board td, .board th { padding:5px 14px; text-align:left; border-bottom:1px solid #2a3a20; }
+  .board th { color:#8fa37e; font-size:12px; font-weight:normal; text-transform:uppercase; }
+  .board tr.new td { color:#f0d048; font-weight:bold; }
+  .board .rank { color:#68804f; }
   #pauseBtn {
     position:fixed; top:26px; left:8px; z-index:5; width:42px; height:42px;
     background:rgba(20,30,15,0.7); border:1px solid #4a6a34; border-radius:8px;
@@ -96,6 +101,7 @@
   <div class="coins" id="menuCoins"></div>
   <button class="btn" id="startBtn">НАЧАТЬ</button>
   <button class="btn small" onclick="openShop('menu')">💰 МАГАЗИН</button>
+  <button class="btn small" onclick="openRecords('menu')">🏆 РЕКОРДЫ</button>
   <div class="hint">WASD / стрелки — движение &nbsp;•&nbsp; P — пауза &nbsp;•&nbsp; M — звук</div>
 </div>
 
@@ -116,16 +122,15 @@
 <div id="gameover" class="overlay hidden">
   <h2 style="color:#d85040">ТЫ СТАЛ ОДНИМ ИЗ НИХ...</h2>
   <div class="stats" id="overStats"></div>
+  <div id="overBoard"></div>
   <button class="btn" id="retryBtn">ЕЩЁ РАЗ</button>
   <button class="btn small" onclick="openShop('gameover')">💰 МАГАЗИН</button>
 </div>
 
-<div id="win" class="overlay hidden">
-  <h2 style="color:#e8d878">РАССВЕТ! ТЫ ВЫЖИЛ!</h2>
-  <div class="sub">Вертолёт уносит тебя прочь от мёртвого города.</div>
-  <div class="stats" id="winStats"></div>
-  <button class="btn" id="againBtn">СЫГРАТЬ СНОВА</button>
-  <button class="btn small" onclick="openShop('win')">💰 МАГАЗИН</button>
+<div id="records" class="overlay hidden">
+  <h2>🏆 РЕКОРДЫ</h2>
+  <div id="boardList"></div>
+  <button class="btn small" id="recordsBack">НАЗАД</button>
 </div>
 
 <div id="paused" class="overlay hidden">
