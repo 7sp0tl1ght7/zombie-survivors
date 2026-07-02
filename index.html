@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ZOMBIE SURVIVORS</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0a0d0a; font-family:'Segoe UI',Verdana,sans-serif;
+              touch-action:none; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  #game { display:block; width:100%; height:100%; touch-action:none; }
+  .overlay {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px;
+    background:rgba(5,8,5,0.82); color:#d8e8d0; z-index:10;
+  }
+  .hidden { display:none; }
+  h1 { font-size:64px; letter-spacing:6px; color:#8fce5a; text-shadow:0 0 24px #3a7a1a, 3px 3px 0 #1a2a10; }
+  h2 { font-size:40px; color:#e0e8d8; }
+  .sub { font-size:18px; color:#9ab088; max-width:560px; text-align:center; line-height:1.5; }
+  .btn {
+    padding:14px 44px; font-size:22px; background:#2c4a1c; color:#d8f0c0;
+    border:2px solid #5a8a3a; border-radius:6px; cursor:pointer; letter-spacing:2px;
+    transition:all .15s;
+  }
+  .btn:hover { background:#3c6428; box-shadow:0 0 18px #4a8a2a; }
+  #cards { display:flex; gap:20px; }
+  .card {
+    width:220px; min-height:260px; padding:18px 16px; cursor:pointer;
+    background:linear-gradient(180deg,#1a2414,#101a0c);
+    border:2px solid #4a6a34; border-radius:10px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    transition:all .12s;
+  }
+  .card:hover { transform:translateY(-8px) scale(1.03); border-color:#9ade5a; box-shadow:0 8px 28px rgba(90,180,40,.35); }
+  .card .icon { font-size:48px; margin-top:6px; }
+  .card .cname { font-size:19px; font-weight:bold; color:#c8e8a8; text-align:center; }
+  .card .clvl { font-size:13px; color:#e8c860; }
+  .card .cdesc { font-size:14px; color:#93a884; text-align:center; line-height:1.45; }
+  .card .ckey { margin-top:auto; font-size:12px; color:#5a7048; }
+  .stats { font-size:19px; line-height:1.9; color:#b8c8a8; text-align:center; }
+  .stats b { color:#e8d878; }
+  .hint { font-size:14px; color:#68804f; }
+  #paused h2 { color:#e8d878; }
+  .btn.small { padding:9px 26px; font-size:16px; }
+  .coins { font-size:22px; color:#f0d048; }
+  #shopItems { display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow-y:auto; padding:4px; }
+  .shopRow {
+    display:flex; align-items:center; gap:14px; width:560px; padding:10px 14px;
+    background:linear-gradient(180deg,#1a2414,#101a0c); border:1px solid #3a5228; border-radius:8px;
+  }
+  .shopRow .icon { font-size:28px; width:36px; text-align:center; }
+  .shopRow .info { flex:1; }
+  .shopRow .sname { font-size:16px; font-weight:bold; color:#c8e8a8; }
+  .shopRow .sdesc { font-size:13px; color:#8fa37e; }
+  .shopRow .slvl { font-size:13px; color:#e8c860; width:56px; text-align:center; }
+  .buyBtn {
+    padding:8px 16px; font-size:15px; min-width:96px; background:#3a5220; color:#f0e8b0;
+    border:1px solid #6a9440; border-radius:6px; cursor:pointer;
+  }
+  .buyBtn:hover:not(:disabled) { background:#4c6c2c; }
+  .buyBtn:disabled { opacity:.4; cursor:default; }
+  #pauseBtn {
+    position:fixed; top:26px; left:8px; z-index:5; width:42px; height:42px;
+    background:rgba(20,30,15,0.7); border:1px solid #4a6a34; border-radius:8px;
+    color:#c8e8a8; font-size:20px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  @media (max-width: 760px), (max-height: 560px) {
+    h1 { font-size:34px; letter-spacing:3px; }
+    h2 { font-size:26px; }
+    .sub { font-size:14px; max-width:92vw; }
+    .overlay { gap:10px; }
+    .btn { padding:11px 30px; font-size:18px; }
+    #cards { flex-direction:column; gap:8px; max-height:62vh; overflow-y:auto; }
+    .card { width:88vw; min-height:0; padding:10px 12px; flex-direction:row; text-align:left; flex-wrap:wrap; }
+    .card .icon { font-size:28px; margin:0; }
+    .card .cname { font-size:16px; }
+    .card .cdesc { font-size:12px; text-align:left; width:100%; }
+    .card .ckey { display:none; }
+    .card:hover { transform:none; }
+    .shopRow { width:92vw; padding:8px 10px; }
+    #shopItems { max-height:52vh; }
+    .stats { font-size:15px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="pauseBtn" class="hidden">⏸</div>
+
+<div id="menu" class="overlay">
+  <h1>ZOMBIE SURVIVORS</h1>
+  <div class="sub">Мертвецы восстали. Ты — последний выживший в городе.<br>
+    Продержись <b style="color:#e8d878">15 минут</b> до рассвета — и эвакуационный вертолёт заберёт тебя.<br><br>
+    Оружие стреляет само. Твоё дело — двигаться, собирать опыт и становиться сильнее.</div>
+  <div class="coins" id="menuCoins"></div>
+  <button class="btn" id="startBtn">НАЧАТЬ</button>
+  <button class="btn small" onclick="openShop('menu')">💰 МАГАЗИН</button>
+  <div class="hint">WASD / стрелки — движение &nbsp;•&nbsp; P — пауза &nbsp;•&nbsp; M — звук</div>
+</div>
+
+<div id="shop" class="overlay hidden">
+  <h2>УБЕЖИЩЕ</h2>
+  <div class="sub">Постоянные улучшения. Действуют во всех следующих забегах.</div>
+  <div class="coins" id="shopCoins"></div>
+  <div id="shopItems"></div>
+  <button class="btn small" id="shopBack">НАЗАД</button>
+</div>
+
+<div id="levelup" class="overlay hidden">
+  <h2>УРОВЕНЬ ПОВЫШЕН!</h2>
+  <div class="sub">Выбери улучшение</div>
+  <div id="cards"></div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <h2 style="color:#d85040">ТЫ СТАЛ ОДНИМ ИЗ НИХ...</h2>
+  <div class="stats" id="overStats"></div>
+  <button class="btn" id="retryBtn">ЕЩЁ РАЗ</button>
+  <button class="btn small" onclick="openShop('gameover')">💰 МАГАЗИН</button>
+</div>
+
+<div id="win" class="overlay hidden">
+  <h2 style="color:#e8d878">РАССВЕТ! ТЫ ВЫЖИЛ!</h2>
+  <div class="sub">Вертолёт уносит тебя прочь от мёртвого города.</div>
+  <div class="stats" id="winStats"></div>
+  <button class="btn" id="againBtn">СЫГРАТЬ СНОВА</button>
+  <button class="btn small" onclick="openShop('win')">💰 МАГАЗИН</button>
+</div>
+
+<div id="paused" class="overlay hidden">
+  <h2>ПАУЗА</h2>
+  <button class="btn" id="resumeBtn">ПРОДОЛЖИТЬ</button>
+  <div class="hint">или нажми P</div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
