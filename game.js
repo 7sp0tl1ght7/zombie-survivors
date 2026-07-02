@@ -45,6 +45,10 @@ const sfx = {
 // ============================================================ ввод
 const keys = {};
 window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') {
+    if (e.code === 'Enter' && G.state === 'menu') { e.target.blur(); startGame(); }
+    return; // печать имени — не игровые хоткеи
+  }
   keys[e.code] = true;
   if (e.code === 'KeyM') muted = !muted;
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
@@ -81,6 +85,32 @@ const joyEnd = e => {
 };
 cvs.addEventListener('touchend', joyEnd);
 cvs.addEventListener('touchcancel', joyEnd);
+
+// ============================================================ глобальный рейтинг (Supabase)
+const SB_URL = 'https://dlfulflmdodzeabxvfcb.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsZnVsZmxtZG9kemVhYnh2ZmNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMDUxODYsImV4cCI6MjA5ODU4MTE4Nn0.ZEbr0oQ9zQuhcLUaYsG_sn4P8_hiYIT5o2uau1wPzHo';
+function sbFetch(path, opts = {}) {
+  return fetch(`${SB_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+  });
+}
+function getName() {
+  try { return localStorage.getItem('zs_name') || ''; } catch (e) { return ''; }
+}
+function submitScore() {
+  const name = getName();
+  if (!name || G.time < 60) return; // без имени или совсем короткие забеги не шлём
+  sbFetch('scores', {
+    method: 'POST',
+    body: JSON.stringify({ name, t: Math.round(G.time), kills: G.kills, level: player.level }),
+  }).catch(() => {}); // офлайн — не страшно, локальный рекорд всё равно записан
+}
+async function fetchGlobalBoard() {
+  const r = await sbFetch('scores?select=name,t,kills,level,created_at&order=t.desc,kills.desc&limit=20');
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
 
 // ============================================================ мета-прогрессия (между забегами)
 const META = {
@@ -644,6 +674,7 @@ function gameOver() {
   G.state = 'over';
   hideAll();
   hide('pauseBtn');
+  submitScore();
   const rank = addScore();
   document.getElementById('overStats').innerHTML = statsHTML() +
     (rank === 0 ? '<br><b style="color:#f0d048">🏆 НОВЫЙ РЕКОРД!</b>' : rank > 0 ? `<br><b>#${rank + 1} в таблице рекордов</b>` : '');
@@ -665,18 +696,33 @@ function addScore() {
   return board.indexOf(entry); // -1 если не попал в топ-10
 }
 function fmtT(t) { return `${(t / 60) | 0}:${String(t % 60).padStart(2, '0')}`; }
-function boardHTML(board) {
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function boardHTML(board, global = false) {
   if (!board.length) return '<div class="hint">Пока пусто — стань первым!</div>';
-  let h = '<table class="board"><tr><th>#</th><th>Время</th><th>Убийств</th><th>Ур.</th><th>Дата</th></tr>';
+  let h = `<table class="board"><tr><th>#</th>${global ? '<th>Имя</th>' : ''}<th>Время</th><th>Убийств</th><th>Ур.</th><th>Дата</th></tr>`;
   board.forEach((b, i) => {
-    h += `<tr${b.isNew ? ' class="new"' : ''}><td class="rank">${i + 1}</td><td>${fmtT(b.t)}${b.t >= DAWN_TIME ? ' ☀' : ''}</td><td>${b.kills}</td><td>${b.level}</td><td>${b.date}</td></tr>`;
+    const date = b.date || (b.created_at || '').slice(0, 10);
+    const me = global && b.name === getName();
+    h += `<tr${b.isNew || me ? ' class="new"' : ''}><td class="rank">${i + 1}</td>${global ? `<td>${esc(b.name)}</td>` : ''}<td>${fmtT(b.t)}${b.t >= DAWN_TIME ? ' ☀' : ''}</td><td>${b.kills}</td><td>${b.level}</td><td>${date}</td></tr>`;
   });
   return h + '</table>';
 }
+function showTab(global) {
+  document.getElementById('tabLocal').classList.toggle('active', !global);
+  document.getElementById('tabGlobal').classList.toggle('active', global);
+  const el = document.getElementById('boardList');
+  if (!global) { el.innerHTML = boardHTML(loadBoard()); return; }
+  el.innerHTML = '<div class="hint">Загрузка...</div>';
+  fetchGlobalBoard()
+    .then(b => { el.innerHTML = boardHTML(b, true); })
+    .catch(() => { el.innerHTML = '<div class="hint">Не удалось загрузить — проверь интернет</div>'; });
+}
+document.getElementById('tabLocal').onclick = () => showTab(false);
+document.getElementById('tabGlobal').onclick = () => showTab(true);
 function openRecords(from) {
   window.recordsReturn = from;
   hide(from);
-  document.getElementById('boardList').innerHTML = boardHTML(loadBoard());
+  showTab(false);
   show('records');
 }
 document.getElementById('recordsBack').onclick = () => {
@@ -684,6 +730,9 @@ document.getElementById('recordsBack').onclick = () => {
   show(window.recordsReturn || 'menu');
 };
 function startGame() {
+  const nameEl = document.getElementById('playerName');
+  const name = nameEl.value.trim().slice(0, 16);
+  if (name) { try { localStorage.setItem('zs_name', name); } catch (e) {} }
   reset();
   hideAll();
   show('pauseBtn');
@@ -1059,4 +1108,5 @@ function loop(now) {
 }
 reset();
 updateMenuCoins();
+document.getElementById('playerName').value = getName();
 requestAnimationFrame(loop);

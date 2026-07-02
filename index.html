@@ -65,6 +65,17 @@
   .board th { color:#8fa37e; font-size:12px; font-weight:normal; text-transform:uppercase; }
   .board tr.new td { color:#f0d048; font-weight:bold; }
   .board .rank { color:#68804f; }
+  #playerName {
+    padding:10px 16px; font-size:17px; width:280px; max-width:80vw; text-align:center;
+    background:#141e0e; color:#d8f0c0; border:1px solid #4a6a34; border-radius:6px; outline:none;
+  }
+  #playerName:focus { border-color:#8fce5a; }
+  .tabs { display:flex; gap:8px; }
+  .tab {
+    padding:8px 22px; font-size:15px; background:#182410; color:#8fa37e;
+    border:1px solid #3a5228; border-radius:6px; cursor:pointer;
+  }
+  .tab.active { background:#2c4a1c; color:#d8f0c0; border-color:#6a9440; }
   #pauseBtn {
     position:fixed; top:26px; left:8px; z-index:5; width:42px; height:42px;
     background:rgba(20,30,15,0.7); border:1px solid #4a6a34; border-radius:8px;
@@ -99,6 +110,7 @@
     Продержись <b style="color:#e8d878">15 минут</b> до рассвета — и эвакуационный вертолёт заберёт тебя.<br><br>
     Оружие стреляет само. Твоё дело — двигаться, собирать опыт и становиться сильнее.</div>
   <div class="coins" id="menuCoins"></div>
+  <input id="playerName" maxlength="16" placeholder="Твоё имя для рейтинга" autocomplete="off">
   <button class="btn" id="startBtn">НАЧАТЬ</button>
   <button class="btn small" onclick="openShop('menu')">💰 МАГАЗИН</button>
   <button class="btn small" onclick="openRecords('menu')">🏆 РЕКОРДЫ</button>
@@ -129,6 +141,10 @@
 
 <div id="records" class="overlay hidden">
   <h2>🏆 РЕКОРДЫ</h2>
+  <div class="tabs">
+    <button class="tab active" id="tabLocal">Мои</button>
+    <button class="tab" id="tabGlobal">🌍 Мировые</button>
+  </div>
   <div id="boardList"></div>
   <button class="btn small" id="recordsBack">НАЗАД</button>
 </div>
