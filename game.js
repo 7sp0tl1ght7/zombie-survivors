@@ -125,6 +125,17 @@ const META = {
   greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% ко всей добытой голде' },
 };
 for (const k in META) { META[k].cost = BAL.meta[k].cost; META[k].max = BAL.meta[k].max; }
+
+// --- глобальный вайп прогресса: смени дату — и у ВСЕХ (включая друзей) обнулится
+// весь локальный прогресс при следующем заходе. ---
+const WIPE_VERSION = '2026-07-03';
+try {
+  if (localStorage.getItem('zs_wipe') !== WIPE_VERSION) {
+    ['zs_meta', 'zs_board', 'zs_name'].forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('zs_wipe', WIPE_VERSION);
+  }
+} catch (e) {}
+
 let meta = { coins: 0, upgrades: {} };
 try {
   const s = localStorage.getItem('zs_meta');
