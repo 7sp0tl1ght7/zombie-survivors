@@ -214,6 +214,14 @@ function reset() {
   G.time = 0; G.kills = 0; G.money = 0; G.shake = 0; G.flash = 0; G.nextBossAt = 180; G.nextHordeAt = 240; G.spawnT = 0; G.lastHurtSfx = -1; G.dawn = false;
 }
 
+// ============================================================ кривая сложности
+// Экспонента: мягко в начале, каждая минута ощутимо тяжелее.
+// После рассвета (15:00) — второй, злой множитель: выживание должно закончиться.
+function postDawnMin() { return Math.max(0, G.time - DAWN_TIME) / 60; }
+function enemyHpMul()  { return Math.pow(1.10, G.time / 60) * Math.pow(1.30, postDawnMin()); }
+function enemyDmgMul() { return Math.min(5, Math.pow(1.05, G.time / 60) * Math.pow(1.18, postDawnMin())); }
+function enemySpdMul() { return Math.min(2.2, 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.25 + postDawnMin() * 0.09); }
+
 // ============================================================ враги
 const ETYPES = {
   walker:  { hp: 22,  speed: 42,  dmg: 12, r: 13, xp: 1, color: '#5a7a3a', from: 0,   w: 10 },
@@ -235,13 +243,13 @@ function spawnEnemy(typeName, boss = false, ang = null, dist = null) {
   const t = ETYPES[typeName];
   if (ang === null) ang = Math.random() * Math.PI * 2;
   const R = dist !== null ? dist : Math.max(W, H) / 2 + 80;
-  const hpMul = 1 + (G.time / 60) * 0.13;
+  const hpMul = enemyHpMul();
   const e = {
     x: player.x + Math.cos(ang) * R,
     y: player.y + Math.sin(ang) * R,
     type: typeName,
     r: boss ? 38 : t.r,
-    hp: boss ? 900 * (1 + G.time / 180) : t.hp * hpMul,
+    hp: boss ? 800 * hpMul : t.hp * hpMul,
     speed: boss ? 46 : t.speed * rand(0.9, 1.1),
     dmg: boss ? 42 : t.dmg,
     xp: boss ? 40 : t.xp,
@@ -256,10 +264,10 @@ function spawnEnemy(typeName, boss = false, ang = null, dist = null) {
 function updateSpawns(dt) {
   G.spawnT -= dt;
   if (G.spawnT <= 0) {
-    const interval = Math.max(0.24, 1.05 - G.time * 0.0009);
+    const interval = Math.max(0.12, 1.05 * Math.pow(0.93, G.time / 60) * Math.pow(0.85, postDawnMin()));
     G.spawnT = interval;
     if (enemies.length < 420) {
-      const n = 1 + Math.floor(G.time / 200);
+      const n = 1 + Math.floor(G.time / 210) + Math.floor(postDawnMin() / 2);
       for (let i = 0; i < n; i++) spawnEnemy(pickEnemyType());
     }
   }
@@ -271,9 +279,9 @@ function updateSpawns(dt) {
   }
   // орда: кольцо быстрых зомби вокруг игрока — наказание за вечное убегание
   if (G.time >= G.nextHordeAt) {
-    G.nextHordeAt += 85;
+    G.nextHordeAt += G.dawn ? 60 : 85; // после рассвета орды чаще
     // кольцо с брешью ~70° — выход есть, но его надо найти
-    const n = 12 + Math.floor(G.time / 120);
+    const n = 12 + Math.floor(G.time / 120) + Math.round(postDawnMin() * 2);
     const gap = Math.random() * Math.PI * 2;
     for (let i = 0; i < n; i++)
       spawnEnemy('runner', false, gap + 0.65 + i * (Math.PI * 2 - 1.3) / (n - 1), 480);
@@ -509,8 +517,8 @@ function updateEnemies(dt) {
         }
       }
   }
-  const spdMul = 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.35; // зомби звереют со временем (после рассвета скорость не растёт)
-  const dmgMul = 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.25; // и бьют больнее
+  const spdMul = enemySpdMul();
+  const dmgMul = enemyDmgMul();
   const repoR = Math.max(W, H) * 0.95; // отставших телепортируем вперёд по курсу
   for (const e of enemies) {
     const dx = player.x - e.x, dy = player.y - e.y;
