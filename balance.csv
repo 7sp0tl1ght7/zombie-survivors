@@ -70,7 +70,7 @@ player.levelHeal;5;Лечение за каждый левел-ап
 progress.xpFirst;8;Опыта на 2-й уровень
 progress.xpBase;6;База формулы следующего уровня
 progress.xpPerLevel;9;Прибавка опыта за уровень
-progress.metaCostGrowth;2;Во сколько раз дорожает апгрейд магазина за уровень
+progress.metaCostGrowth;1,5;Во сколько раз дорожает апгрейд магазина за уровень
 # ==== МАГАЗИН МЕТА (cost=цена, max=потолок, step=эффект за уровень) ====;;
 meta.damage.cost;50;
 meta.damage.max;5;

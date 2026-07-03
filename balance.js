@@ -87,7 +87,7 @@ window.BALANCE = {
                      "xpFirst":  8,
                      "xpBase":  6,
                      "xpPerLevel":  9,
-                     "metaCostGrowth":  2
+                     "metaCostGrowth":  1.5
                  },
     "meta":  {
                  "damage":  {
