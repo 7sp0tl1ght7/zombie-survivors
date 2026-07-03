@@ -121,9 +121,9 @@ window.BALANCE = {
                                 "step":  0
                             },
                  "greed":  {
-                               "cost":  0,
-                               "max":  0,
-                               "step":  0
+                               "cost":  200,
+                               "max":  4,
+                               "step":  25
                            }
              },
     "passive":  {
