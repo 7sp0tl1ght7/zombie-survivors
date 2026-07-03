@@ -123,7 +123,7 @@ window.BALANCE = {
                  "greed":  {
                                "cost":  200,
                                "max":  4,
-                               "step":  25
+                               "step":  0.25
                            }
              },
     "passive":  {
