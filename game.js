@@ -302,7 +302,7 @@ function damageEnemy(e, dmg, kx = 0, ky = 0) {
   e.hp -= dmg;
   e.flash = 0.1;
   e.x += kx; e.y += ky;
-  addDnum(e.x + rand(-8, 8), e.y - e.r - 4, Math.round(dmg), '#f0e8c0');
+  addDnum(e.x + rand(-8, 8), e.y - e.r - 4, dmg, '#f0e8c0'); // округление — внутри addDnum
   if (e.hp <= 0) killEnemy(e);
 }
 
@@ -500,6 +500,7 @@ function updateZones(dt) {
 }
 
 function addDnum(x, y, text, color, size = 13) {
+  if (typeof text === 'number') text = Math.round(text); // в визуале — всегда целые
   if (dnums.length > 80) dnums.shift();
   dnums.push({ x, y, text, color, size, t: 0.7 });
 }
