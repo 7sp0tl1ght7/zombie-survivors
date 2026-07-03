@@ -8,10 +8,11 @@ function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.i
 window.addEventListener('resize', resize);
 resize();
 
-const DAWN_TIME = 15 * 60; // секунд до рассвета — чекпоинт, дальше бесконечность
 const rand = (a, b) => a + Math.random() * (b - a);
 const dist2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const BAL = window.BALANCE; // все числа баланса — из balance.csv (конвертер build-balance.ps1)
+const DAWN_TIME = BAL.game.dawnTime; // секунд до рассвета — чекпоинт, дальше бесконечность
 
 // ============================================================ звук
 let audioCtx = null, muted = false;
@@ -113,15 +114,17 @@ async function fetchGlobalBoard() {
 }
 
 // ============================================================ мета-прогрессия (между забегами)
+// названия/иконки — в коде; цены (cost) и потолки (max) — из balance.csv (meta.*)
 const META = {
-  damage: { name: 'Тренировка',   icon: '💪', desc: '+10% к урону навсегда',        max: 5, cost: 20 },
-  hp:     { name: 'Живучесть',    icon: '❤️', desc: '+15 к макс. здоровью',          max: 5, cost: 15 },
-  armor:  { name: 'Толстая кожа', icon: '🛡️', desc: '−5% получаемого урона',         max: 4, cost: 30 },
-  regen:  { name: 'Метаболизм',   icon: '🧬', desc: '+0.3 HP/сек регенерации',       max: 3, cost: 25 },
-  speed:  { name: 'Выносливость', icon: '🏃', desc: '+4% к скорости бега',           max: 5, cost: 15 },
-  magnet: { name: 'Хват',         icon: '🧲', desc: '+20% к радиусу сбора опыта',    max: 3, cost: 10 },
-  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% монет с зомби',            max: 3, cost: 15 },
+  damage: { name: 'Тренировка',   icon: '💪', desc: '+10% к урону навсегда' },
+  hp:     { name: 'Живучесть',    icon: '❤️', desc: '+15 к макс. здоровью' },
+  armor:  { name: 'Толстая кожа', icon: '🛡️', desc: '−5% получаемого урона' },
+  regen:  { name: 'Метаболизм',   icon: '🧬', desc: '+0.3 HP/сек регенерации' },
+  speed:  { name: 'Выносливость', icon: '🏃', desc: '+4% к скорости бега' },
+  magnet: { name: 'Хват',         icon: '🧲', desc: '+20% к радиусу сбора опыта' },
+  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% монет с зомби' },
 };
+for (const k in META) { META[k].cost = BAL.meta[k].cost; META[k].max = BAL.meta[k].max; }
 let meta = { coins: 0, upgrades: {} };
 try {
   const s = localStorage.getItem('zs_meta');
@@ -129,7 +132,7 @@ try {
 } catch (e) { /* приватный режим — играем без сохранений */ }
 function saveMeta() { try { localStorage.setItem('zs_meta', JSON.stringify(meta)); } catch (e) {} }
 const mlvl = k => meta.upgrades[k] || 0;
-const metaCost = k => Math.round(META[k].cost * Math.pow(1.9, mlvl(k)));
+const metaCost = k => Math.round(META[k].cost * Math.pow(BAL.progress.metaCostGrowth, mlvl(k)));
 
 function openShop(from) {
   window.shopReturn = from;
@@ -194,13 +197,13 @@ const G = { state: 'menu', time: 0, kills: 0, shake: 0, flash: 0, nextBossAt: 18
 let player, enemies, bullets, gems, pickups, zones, particles, dnums, bloods, orbitA, currentChoices = [];
 
 function reset() {
-  const maxhp = 100 + 15 * mlvl('hp');
+  const maxhp = BAL.player.hp + BAL.meta.hp.step * mlvl('hp');
   player = {
-    x: 0, y: 0, r: 14, hp: maxhp, maxhp, level: 1, xp: 0, xpNext: 8,
-    baseSpeed: 150 * (1 + 0.04 * mlvl('speed')),
-    baseMagnet: 70 * (1 + 0.2 * mlvl('magnet')),
-    metaPower: 1 + 0.10 * mlvl('damage'),
-    metaRegen: 0.3 * mlvl('regen'),
+    x: 0, y: 0, r: 14, hp: maxhp, maxhp, level: 1, xp: 0, xpNext: BAL.progress.xpFirst,
+    baseSpeed: BAL.player.speed * (1 + BAL.meta.speed.step * mlvl('speed')),
+    baseMagnet: BAL.player.magnet * (1 + BAL.meta.magnet.step * mlvl('magnet')),
+    metaPower: 1 + BAL.meta.damage.step * mlvl('damage'),
+    metaRegen: BAL.meta.regen.step * mlvl('regen'),
     faceX: 1, faceY: 0, hurtT: 0, muzzleT: 0, zoneCd: 0,
     weapons: { pistol: { lvl: 1, t: 0 } },
     passives: {},
@@ -218,18 +221,21 @@ function reset() {
 // Экспонента: мягко в начале, каждая минута ощутимо тяжелее.
 // После рассвета (15:00) — второй, злой множитель: выживание должно закончиться.
 function postDawnMin() { return Math.max(0, G.time - DAWN_TIME) / 60; }
-function enemyHpMul()  { return Math.pow(1.10, G.time / 60) * Math.pow(1.30, postDawnMin()); }
-function enemyDmgMul() { return Math.min(5, Math.pow(1.05, G.time / 60) * Math.pow(1.18, postDawnMin())); }
-function enemySpdMul() { return Math.min(2.2, 1 + Math.min(G.time, DAWN_TIME) / 900 * 0.25 + postDawnMin() * 0.09); }
+function enemyHpMul()  { return Math.pow(BAL.curve.hpPerMin, G.time / 60) * Math.pow(BAL.curve.hpPerMinDawn, postDawnMin()); }
+function enemyDmgMul() { return Math.min(BAL.curve.dmgMax, Math.pow(BAL.curve.dmgPerMin, G.time / 60) * Math.pow(BAL.curve.dmgPerMinDawn, postDawnMin())); }
+function enemySpdMul() { return Math.min(BAL.curve.spdMax, 1 + Math.min(G.time, DAWN_TIME) / DAWN_TIME * BAL.curve.spdPreDawn + postDawnMin() * BAL.curve.spdPerMinDawn); }
 
 // ============================================================ враги
-const ETYPES = {
-  walker:  { hp: 22,  speed: 42,  dmg: 12, r: 13, xp: 1, color: '#5a7a3a', from: 0,   w: 10 },
-  runner:  { hp: 13,  speed: 105, dmg: 9,  r: 11, xp: 2, color: '#8a9a4a', from: 60,  w: 4 },
-  bloater: { hp: 65,  speed: 30,  dmg: 18, r: 18, xp: 3, color: '#4a8a6a', from: 180, w: 1.5, explodes: true },
-  brute:   { hp: 170, speed: 36,  dmg: 30, r: 22, xp: 6, color: '#3a5a2a', from: 300, w: 1.5 },
-  crawler: { hp: 8,   speed: 155, dmg: 7,  r: 9,  xp: 1, color: '#9a6a4a', from: 420, w: 3 },
+// характеристики берём из balance.csv, а размер/цвет/спец-свойства — из кода
+const EVIS = {
+  walker:  { r: 13, color: '#5a7a3a' },
+  runner:  { r: 11, color: '#8a9a4a' },
+  bloater: { r: 18, color: '#4a8a6a', explodes: true },
+  brute:   { r: 22, color: '#3a5a2a' },
+  crawler: { r: 9,  color: '#9a6a4a' },
 };
+const ETYPES = {};
+for (const k in EVIS) ETYPES[k] = { ...BAL.enemy[k], ...EVIS[k] };
 function pickEnemyType() {
   const pool = Object.keys(ETYPES).filter(k => G.time >= ETYPES[k].from);
   let total = 0;
@@ -249,10 +255,10 @@ function spawnEnemy(typeName, boss = false, ang = null, dist = null) {
     y: player.y + Math.sin(ang) * R,
     type: typeName,
     r: boss ? 38 : t.r,
-    hp: boss ? 800 * hpMul : t.hp * hpMul,
+    hp: boss ? BAL.game.bossHp * hpMul : t.hp * hpMul,
     speed: boss ? 46 : t.speed * rand(0.9, 1.1),
-    dmg: boss ? 42 : t.dmg,
-    xp: boss ? 40 : t.xp,
+    dmg: boss ? BAL.game.bossDmg : t.dmg,
+    xp: boss ? BAL.game.bossXp : t.xp,
     color: boss ? '#6a2a7a' : t.color,
     boss, explodes: !boss && t.explodes,
     flash: 0, sawCd: 0, hitCd: 0, wobble: Math.random() * 6.28,
@@ -264,22 +270,22 @@ function spawnEnemy(typeName, boss = false, ang = null, dist = null) {
 function updateSpawns(dt) {
   G.spawnT -= dt;
   if (G.spawnT <= 0) {
-    const interval = Math.max(0.12, 1.05 * Math.pow(0.93, G.time / 60) * Math.pow(0.85, postDawnMin()));
+    const interval = Math.max(BAL.curve.spawnMin, BAL.curve.spawnBase * Math.pow(BAL.curve.spawnDecay, G.time / 60) * Math.pow(BAL.curve.spawnDecayDawn, postDawnMin()));
     G.spawnT = interval;
-    if (enemies.length < 420) {
-      const n = 1 + Math.floor(G.time / 210) + Math.floor(postDawnMin() / 2);
+    if (enemies.length < BAL.curve.maxEnemies) {
+      const n = 1 + Math.floor(G.time / BAL.curve.spawnCountDiv) + Math.floor(postDawnMin() / 2);
       for (let i = 0; i < n; i++) spawnEnemy(pickEnemyType());
     }
   }
   if (G.time >= G.nextBossAt) {
-    G.nextBossAt += 180;
+    G.nextBossAt += BAL.game.bossInterval;
     spawnEnemy('brute', true);
     sfx.boss();
     addDnum(player.x, player.y - 60, 'БОСС!', '#d860e8', 26);
   }
   // орда: кольцо быстрых зомби вокруг игрока — наказание за вечное убегание
   if (G.time >= G.nextHordeAt) {
-    G.nextHordeAt += G.dawn ? 60 : 85; // после рассвета орды чаще
+    G.nextHordeAt += G.dawn ? BAL.game.hordeIntervalDawn : BAL.game.hordeInterval; // после рассвета орды чаще
     // кольцо с брешью ~70° — выход есть, но его надо найти
     const n = 12 + Math.floor(G.time / 120) + Math.round(postDawnMin() * 2);
     const gap = Math.random() * Math.PI * 2;
@@ -315,19 +321,21 @@ function killEnemy(e) {
   }
   // опыт
   gems.push({ x: e.x + rand(-6, 6), y: e.y + rand(-6, 6), v: e.xp, t: 0 });
-  // редкий лут
+  // редкий лут — независимые шансы из balance.csv (drop.*)
   const roll = Math.random();
+  const d = BAL.drop;
   if (e.boss) {
     pickups.push({ x: e.x, y: e.y, kind: 'chest' });
-    pickups.push({ x: e.x + 20, y: e.y + 10, kind: 'coin', v: 30 });
+    pickups.push({ x: e.x + 20, y: e.y + 10, kind: 'coin', v: d.bossCoin });
   }
-  else if (roll < 0.018) pickups.push({ x: e.x, y: e.y, kind: 'med' });
-  else if (roll < 0.023) pickups.push({ x: e.x, y: e.y, kind: 'magnet' });
-  else if (roll < 0.10) pickups.push({ x: e.x, y: e.y, kind: 'coin', v: Math.random() < 0.2 ? 3 : 1 });
+  else if (roll < d.medChance) pickups.push({ x: e.x, y: e.y, kind: 'med' });
+  else if (roll < d.medChance + d.magnetChance) pickups.push({ x: e.x, y: e.y, kind: 'magnet' });
+  else if (roll < d.medChance + d.magnetChance + d.coinChance)
+    pickups.push({ x: e.x, y: e.y, kind: 'coin', v: Math.random() < d.coinBigChance ? d.coinBig : d.coinSmall });
 }
 
 function hurtPlayer(dmg) {
-  dmg *= 1 - 0.05 * mlvl('armor');
+  dmg *= 1 - BAL.meta.armor.step * mlvl('armor');
   player.hp -= dmg;
   player.hurtT = 0.25;
   G.shake = Math.min(10, G.shake + 4);
@@ -354,13 +362,13 @@ function fireWeapons(dt) {
     if (w.pistol.t <= 0) {
       const tgt = nearestEnemy(620);
       if (tgt) {
-        const lvl = w.pistol.lvl;
-        w.pistol.t = Math.max(0.22, 0.85 - lvl * 0.1);
+        const lvl = w.pistol.lvl, p = BAL.weapon.pistol;
+        w.pistol.t = Math.max(p.cdMin, p.cdBase - lvl * p.cdPer);
         const shots = 1 + Math.floor(lvl / 2);
         const baseA = Math.atan2(tgt.y - player.y, tgt.x - player.x);
         for (let i = 0; i < shots; i++) {
           const a = baseA + (i - (shots - 1) / 2) * 0.12;
-          bullets.push({ x: player.x, y: player.y, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, dmg: 11 + lvl * 7, r: 3.5, life: 1.4, pierce: lvl >= 4 ? 2 : 1, color: '#f8e8a0' });
+          bullets.push({ x: player.x, y: player.y, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, dmg: p.dmgBase + lvl * p.dmgPer, r: 3.5, life: 1.4, pierce: lvl >= 4 ? 2 : 1, color: '#f8e8a0' });
         }
         player.muzzleT = 0.05;
         player.faceX = Math.cos(baseA); player.faceY = Math.sin(baseA);
@@ -374,14 +382,14 @@ function fireWeapons(dt) {
     if (w.shotgun.t <= 0) {
       const tgt = nearestEnemy(360);
       if (tgt) {
-        const lvl = w.shotgun.lvl;
-        w.shotgun.t = Math.max(0.7, 1.7 - lvl * 0.12);
+        const lvl = w.shotgun.lvl, sg = BAL.weapon.shotgun;
+        w.shotgun.t = Math.max(sg.cdMin, sg.cdBase - lvl * sg.cdPer);
         const baseA = Math.atan2(tgt.y - player.y, tgt.x - player.x);
-        const pellets = 4 + lvl * 2;
+        const pellets = sg.pelletsBase + lvl * sg.pelletsPer;
         for (let i = 0; i < pellets; i++) {
           const a = baseA + rand(-0.38, 0.38);
           const sp = rand(380, 480);
-          bullets.push({ x: player.x, y: player.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: 7 + lvl * 4, r: 2.8, life: 0.45, pierce: 1, color: '#f8c060' });
+          bullets.push({ x: player.x, y: player.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: sg.dmgBase + lvl * sg.dmgPer, r: 2.8, life: 0.45, pierce: 1, color: '#f8c060' });
         }
         player.faceX = Math.cos(baseA); player.faceY = Math.sin(baseA);
         G.shake = Math.min(8, G.shake + 2);
@@ -394,7 +402,7 @@ function fireWeapons(dt) {
     w.molotov.t -= dt;
     if (w.molotov.t <= 0 && enemies.length) {
       const lvl = w.molotov.lvl;
-      w.molotov.t = Math.max(1.2, 3.6 - lvl * 0.45);
+      w.molotov.t = Math.max(BAL.weapon.molotov.cdMin, BAL.weapon.molotov.cdBase - lvl * BAL.weapon.molotov.cdPer);
       const tgt = enemies[(Math.random() * enemies.length) | 0];
       bullets.push({
         x: player.x, y: player.y, tx: tgt.x, ty: tgt.y, throwT: 0.6, throwTotal: 0.6,
@@ -407,27 +415,28 @@ function fireWeapons(dt) {
     const lvl = w.wire.lvl;
     w.wire.t -= dt;
     if (w.wire.t <= 0) {
-      w.wire.t = 0.4;
-      const R = 70 + lvl * 16;
+      const wr = BAL.weapon.wire;
+      w.wire.t = wr.tick;
+      const R = wr.radBase + lvl * wr.radPer;
       for (const e of enemies)
         if (dist2(e.x, e.y, player.x, player.y) < (R + e.r) * (R + e.r))
-          damageEnemy(e, (10 + lvl * 8) * 0.4);
+          damageEnemy(e, (wr.dmgBase + lvl * wr.dmgPer) * wr.tick);
     }
   }
 
   if (w.saw) {
-    const lvl = w.saw.lvl;
+    const lvl = w.saw.lvl, sw = BAL.weapon.saw;
     const count = 1 + Math.ceil(lvl / 2);
-    const R = 78;
+    const R = sw.rad;
     for (let i = 0; i < count; i++) {
       const a = orbitA + i * Math.PI * 2 / count;
       const bx = player.x + Math.cos(a) * R, by = player.y + Math.sin(a) * R;
       for (const e of enemies) {
         if (e.sawCd > 0) continue;
         if (dist2(e.x, e.y, bx, by) < (e.r + 12) * (e.r + 12)) {
-          e.sawCd = 0.35;
+          e.sawCd = sw.cd;
           const kb = 14;
-          damageEnemy(e, 16 + lvl * 10, Math.cos(a) * kb, Math.sin(a) * kb);
+          damageEnemy(e, sw.dmgBase + lvl * sw.dmgPer, Math.cos(a) * kb, Math.sin(a) * kb);
         }
       }
     }
@@ -444,8 +453,8 @@ function updateBullets(dt) {
       b.x = b.sx + (b.tx - b.sx) * p;
       b.y = b.sy + (b.ty - b.sy) * p - Math.sin(p * Math.PI) * 90;
       if (b.throwT <= 0) {
-        const lvl = b.lvl;
-        zones.push({ x: b.tx, y: b.ty, r: 58 + lvl * 14, dps: 14 + lvl * 10, t: 3 + lvl * 0.5, color: 'rgba(240,120,30,0.3)', kind: 'fire' });
+        const lvl = b.lvl, m = BAL.weapon.molotov;
+        zones.push({ x: b.tx, y: b.ty, r: m.radBase + lvl * m.radPer, dps: m.dpsBase + lvl * m.dpsPer, t: 3 + lvl * 0.5, color: 'rgba(240,120,30,0.3)', kind: 'fire' });
         sfx.boom();
         bullets.splice(i, 1);
       }
@@ -469,7 +478,7 @@ function updateZones(dt) {
     if (z.t <= 0) { zones.splice(i, 1); continue; }
     if (z.kind === 'gas') {
       if (dist2(z.x, z.y, player.x, player.y) < z.r * z.r && player.zoneCd <= 0) {
-        player.zoneCd = 0.5; // тик яда раз в полсекунды
+        player.zoneCd = BAL.game.poisonTickCd; // тик яда
         hurtPlayer(z.dps);
       }
     } else {
@@ -538,7 +547,7 @@ function updateEnemies(dt) {
     if (e.hitCd > 0) e.hitCd -= dt;
     // дискретный укус вместо капающего урона: ощутимо и честно
     if (d < e.r + player.r + 2 && e.hitCd <= 0) {
-      e.hitCd = 0.8;
+      e.hitCd = BAL.game.biteCd;
       hurtPlayer(e.dmg * dmgMul);
     }
   }
@@ -569,13 +578,13 @@ function updateLoot(dt) {
       pickups.splice(i, 1);
       sfx.pickup();
       if (p.kind === 'med') {
-        player.hp = Math.min(player.maxhp, player.hp + 35);
-        addDnum(player.x, player.y - 24, '+35', '#60e870', 16);
+        player.hp = Math.min(player.maxhp, player.hp + BAL.drop.medHeal);
+        addDnum(player.x, player.y - 24, `+${BAL.drop.medHeal}`, '#60e870', 16);
       } else if (p.kind === 'magnet') {
         for (const g of gems) g.pulled = true;
         addDnum(player.x, player.y - 24, 'МАГНИТ!', '#60b8e8', 16);
       } else if (p.kind === 'coin') {
-        const v = Math.round(p.v * (1 + 0.25 * mlvl('greed')));
+        const v = Math.round(p.v * (1 + BAL.meta.greed.step * mlvl('greed')));
         G.money += v;
         meta.coins += v;
         saveMeta();
@@ -592,7 +601,7 @@ function gainXP(v) {
   while (player.xp >= player.xpNext) {
     player.xp -= player.xpNext;
     player.level++;
-    player.xpNext = 6 + (player.level - 1) * 9;
+    player.xpNext = BAL.progress.xpBase + (player.level - 1) * BAL.progress.xpPerLevel;
     openLevelUp();
     break; // по одному уровню за раз, остаток сохранится
   }
@@ -649,17 +658,18 @@ function openLevelUp(fromChest = false) {
 }
 
 function pickUpgrade(c) {
-  player.hp = Math.min(player.maxhp, player.hp + 5); // передышка за уровень
+  player.hp = Math.min(player.maxhp, player.hp + BAL.player.levelHeal); // передышка за уровень
   if (c.kind === 'weapon') {
     if (player.weapons[c.key]) player.weapons[c.key].lvl++;
     else player.weapons[c.key] = { lvl: 1, t: 0 };
   } else {
     player.passives[c.key] = (player.passives[c.key] || 0) + 1;
-    if (c.key === 'speed') player.speed = player.baseSpeed * (1 + 0.08 * player.passives.speed);
-    if (c.key === 'maxhp') { player.maxhp += 25; player.hp = Math.min(player.maxhp, player.hp + 25); }
-    if (c.key === 'magnet') player.magnet = player.baseMagnet * (1 + 0.4 * player.passives.magnet);
-    if (c.key === 'power') player.power = player.metaPower * (1 + 0.12 * player.passives.power);
-    if (c.key === 'regen') player.regen = player.metaRegen + 0.8 * player.passives.regen;
+    const ps = BAL.passive;
+    if (c.key === 'speed') player.speed = player.baseSpeed * (1 + ps.speed * player.passives.speed);
+    if (c.key === 'maxhp') { player.maxhp += ps.maxhp; player.hp = Math.min(player.maxhp, player.hp + ps.maxhp); }
+    if (c.key === 'magnet') player.magnet = player.baseMagnet * (1 + ps.magnet * player.passives.magnet);
+    if (c.key === 'power') player.power = player.metaPower * (1 + ps.power * player.passives.power);
+    if (c.key === 'regen') player.regen = player.metaRegen + ps.regen * player.passives.regen;
   }
   hide('levelup');
   G.state = 'play';
@@ -751,6 +761,14 @@ function togglePause() {
   if (G.state === 'play') { G.state = 'pause'; show('paused'); }
   else if (G.state === 'pause') { hide('paused'); G.state = 'play'; lastT = performance.now(); }
 }
+function goMenu() {
+  G.state = 'menu';
+  hideAll();
+  hide('pauseBtn');
+  updateMenuCoins();
+  document.getElementById('playerName').value = getName();
+  show('menu');
+}
 document.getElementById('startBtn').onclick = startGame;
 document.getElementById('retryBtn').onclick = startGame;
 document.getElementById('resumeBtn').onclick = togglePause;
@@ -762,9 +780,9 @@ function update(dt) {
   // рассвет — чекпоинт: бонус и дальше бесконечное выживание
   if (!G.dawn && G.time >= DAWN_TIME) {
     G.dawn = true;
-    const bonus = 150;
+    const bonus = BAL.game.dawnBonus;
     G.money += bonus; meta.coins += bonus; saveMeta();
-    addDnum(player.x, player.y - 70, 'РАССВЕТ! +150 💰', '#f0d048', 28);
+    addDnum(player.x, player.y - 70, `РАССВЕТ! +${bonus} 💰`, '#f0d048', 28);
     addDnum(player.x, player.y - 40, 'Выживай, сколько сможешь', '#e8e8d0', 15);
     sfx.levelup();
   }

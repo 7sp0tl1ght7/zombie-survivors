@@ -137,6 +137,7 @@
   <div id="overBoard"></div>
   <button class="btn" id="retryBtn">ЕЩЁ РАЗ</button>
   <button class="btn small" onclick="openShop('gameover')">💰 МАГАЗИН</button>
+  <button class="btn small" onclick="goMenu()">🏠 ГЛАВНОЕ МЕНЮ</button>
 </div>
 
 <div id="records" class="overlay hidden">
@@ -152,9 +153,11 @@
 <div id="paused" class="overlay hidden">
   <h2>ПАУЗА</h2>
   <button class="btn" id="resumeBtn">ПРОДОЛЖИТЬ</button>
+  <button class="btn small" onclick="goMenu()">🏠 ГЛАВНОЕ МЕНЮ</button>
   <div class="hint">или нажми P</div>
 </div>
 
+<script src="balance.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
