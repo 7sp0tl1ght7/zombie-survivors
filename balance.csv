@@ -1,7 +1,7 @@
 ﻿param;value;comment
 # ==== ОБЩЕЕ / ТАЙМЕРЫ (секунды) ====
 game.dawnTime;900;Время до рассвета-чекпоинта (900 = 15 мин)
-game.dawnBonus;150;Монет за достижение рассвета
+game.dawnBonus;20;Голды за достижение рассвета
 game.bossInterval;180;Интервал появления боссов, сек
 game.bossHp;800;Базовое HP босса (умножается на рост сложности)
 game.bossDmg;42;Урон босса за укус
@@ -11,19 +11,19 @@ game.hordeIntervalDawn;60;Интервал орды после рассвета,
 game.biteCd;0,8;Кулдаун укуса зомби (реже = легче), сек
 game.poisonTickCd;0,5;Кулдаун тика урона в яде, сек
 # ==== КРИВАЯ СЛОЖНОСТИ (множители в степени минут) ====
-curve.hpPerMin;1,10;Рост HP зомби за минуту (1,10 = +10 процентов в минуту)
-curve.hpPerMinDawn;1,30;Доп. рост HP за минуту ПОСЛЕ рассвета
-curve.dmgPerMin;1,05;Рост урона зомби за минуту
-curve.dmgPerMinDawn;1,18;Доп. рост урона за минуту после рассвета
-curve.dmgMax;5;Потолок множителя урона (чтобы не было ваншотов)
+curve.hpPerMin;1,2;Рост HP зомби за минуту (1,10 = рост на 10 процентов в минуту)
+curve.hpPerMinDawn;1,3;Доп. рост HP за минуту ПОСЛЕ рассвета
+curve.dmgPerMin;1,1;Рост урона зомби за минуту
+curve.dmgPerMinDawn;1,2;Доп. рост урона за минуту после рассвета
+curve.dmgMax;10;Потолок множителя урона (чтобы не было ваншотов)
 curve.spdPreDawn;0,25;Прибавка к скорости зомби к рассвету (доля)
 curve.spdPerMinDawn;0,09;Прибавка к скорости за минуту после рассвета
-curve.spdMax;2,2;Потолок множителя скорости
+curve.spdMax;10;Потолок множителя скорости
 curve.spawnBase;1,05;Базовый интервал спавна, сек
 curve.spawnDecay;0,93;Сжатие интервала спавна за минуту (меньше = быстрее)
 curve.spawnDecayDawn;0,85;Доп. сжатие за минуту после рассвета
 curve.spawnMin;0,12;Минимальный интервал спавна, сек
-curve.spawnCountDiv;210;Каждые N сек +1 зомби в пачке спавна
+curve.spawnCountDiv;120;Каждые N сек в пачку спавна добавляется зомби
 curve.maxEnemies;420;Лимит зомби на карте (нагрузка)
 # ==== ЗОМБИ: hp, скорость, урон, опыт, from=с какой секунды, w=вес в спавне ====
 enemy.walker.hp;22;Ходячий — базовый зомби
@@ -33,7 +33,7 @@ enemy.walker.xp;1;
 enemy.walker.from;0;
 enemy.walker.w;10;
 enemy.runner.hp;13;Бегун — быстрый, слабый
-enemy.runner.speed;105;
+enemy.runner.speed;115;
 enemy.runner.dmg;9;
 enemy.runner.xp;2;
 enemy.runner.from;60;
@@ -56,14 +56,10 @@ enemy.crawler.dmg;7;
 enemy.crawler.xp;1;
 enemy.crawler.from;420;
 enemy.crawler.w;3;
-# ==== ДРОП С ЗОМБИ (шанс от 0 до 1, независимые) ====
+# ==== ДРОП С ЗОМБИ (шанс от 0 до 1). Голда с зомби НЕ падает — только с боссов. ====
 drop.medChance;0,006;Шанс аптечки
 drop.magnetChance;0,0017;Шанс магнита
-drop.coinChance;0,077;Шанс монеты
-drop.coinBigChance;0,2;Из монет — шанс крупной
-drop.coinSmall;1;Номинал обычной монеты
-drop.coinBig;3;Номинал крупной монеты
-drop.bossCoin;30;Монет с босса
+drop.bossCoin;10;Голды с босса (подарок-сундук, зачисляется при подборе)
 drop.medHeal;35;Сколько лечит аптечка
 # ==== ИГРОК (стартовые значения) ====
 player.hp;100;Стартовое здоровье
@@ -74,61 +70,61 @@ player.levelHeal;5;Лечение за каждый левел-ап
 progress.xpFirst;8;Опыта на 2-й уровень
 progress.xpBase;6;База формулы следующего уровня
 progress.xpPerLevel;9;Прибавка опыта за уровень
-progress.metaCostGrowth;1,9;Во сколько раз дорожает апгрейд магазина за уровень
+progress.metaCostGrowth;2;Во сколько раз дорожает апгрейд магазина за уровень
 # ==== МАГАЗИН МЕТА (cost=цена, max=потолок, step=эффект за уровень) ====
-meta.damage.cost;20;
+meta.damage.cost;50;
 meta.damage.max;5;
-meta.damage.step;0,10;+10 процентов урона за уровень
-meta.hp.cost;15;
+meta.damage.step;0,1;Урон навсегда, доля за уровень (0,1 = 10 процентов)
+meta.hp.cost;50;
 meta.hp.max;5;
-meta.hp.step;15;+15 HP за уровень
-meta.armor.cost;30;
+meta.hp.step;15;Здоровье за уровень
+meta.armor.cost;50;
 meta.armor.max;4;
-meta.armor.step;0,05;-5 процентов урона за уровень
-meta.regen.cost;25;
+meta.armor.step;0,05;Снижение урона, доля за уровень
+meta.regen.cost;50;
 meta.regen.max;3;
-meta.regen.step;0,3;+0,3 HP в секунду за уровень
-meta.speed.cost;15;
+meta.regen.step;0,3;Реген HP в секунду за уровень
+meta.speed.cost;50;
 meta.speed.max;5;
-meta.speed.step;0,04;+4 процента скорости за уровень
-meta.magnet.cost;10;
+meta.speed.step;0,04;Скорость, доля за уровень
+meta.magnet.cost;100;
 meta.magnet.max;3;
-meta.magnet.step;0,2;+20 процентов магнита за уровень
-meta.greed.cost;15;
-meta.greed.max;3;
-meta.greed.step;0,25;+25 процентов монет за уровень
+meta.magnet.step;0;Магнит, доля за уровень
+meta.greed.cost;0;
+meta.greed.max;0;
+meta.greed.step;0;Прибавка ко всей добытой голде, доля за уровень
 # ==== ПАССИВКИ В ЗАБЕГЕ (эффект за уровень выбора при левел-апе) ====
-passive.speed;0,08;Кроссовки: +8 процентов скорости за уровень
-passive.maxhp;25;Бронежилет: +HP за уровень
-passive.magnet;0,4;Магнит: +40 процентов радиуса за уровень
-passive.power;0,12;Адреналин: +12 процентов урона за уровень
-passive.regen;0,8;Аптечка: +HP в секунду за уровень
+passive.speed;0,08;Кроссовки: доля скорости за уровень
+passive.maxhp;25;Бронежилет: здоровье за уровень
+passive.magnet;0,4;Магнит: доля радиуса за уровень
+passive.power;0,12;Адреналин: доля урона за уровень
+passive.regen;0,8;Аптечка: HP в секунду за уровень
 # ==== ОРУЖИЕ (dmg=урон, cd=кулдаун; per=прибавка за уровень) ====
 weapon.pistol.dmgBase;11;Пистолет: урон на 1 ур.
-weapon.pistol.dmgPer;7;+урон за уровень
+weapon.pistol.dmgPer;7;Прибавка урона за уровень
 weapon.pistol.cdBase;0,85;Кулдаун на 1 ур.
-weapon.pistol.cdPer;0,1;-кулдаун за уровень
+weapon.pistol.cdPer;0,1;Снижение кулдауна за уровень
 weapon.pistol.cdMin;0,22;Минимальный кулдаун
 weapon.shotgun.dmgBase;7;Дробовик: урон дробины
-weapon.shotgun.dmgPer;4;
-weapon.shotgun.cdBase;1,7;
-weapon.shotgun.cdPer;0,12;
-weapon.shotgun.cdMin;0,7;
+weapon.shotgun.dmgPer;4;Прибавка урона за уровень
+weapon.shotgun.cdBase;1,7;Кулдаун на 1 ур.
+weapon.shotgun.cdPer;0,12;Снижение кулдауна за уровень
+weapon.shotgun.cdMin;0,7;Минимальный кулдаун
 weapon.shotgun.pelletsBase;4;Дробин на 1 ур.
-weapon.shotgun.pelletsPer;2;+дробин за уровень
+weapon.shotgun.pelletsPer;2;Прибавка дробин за уровень
 weapon.molotov.cdBase;3,6;Молотов: кулдаун
-weapon.molotov.cdPer;0,45;
-weapon.molotov.cdMin;1,2;
-weapon.molotov.dpsBase;14;Урон лужи/сек
-weapon.molotov.dpsPer;10;
+weapon.molotov.cdPer;0,45;Снижение кулдауна за уровень
+weapon.molotov.cdMin;1,2;Минимальный кулдаун
+weapon.molotov.dpsBase;14;Урон лужи в секунду
+weapon.molotov.dpsPer;10;Прибавка урона лужи за уровень
 weapon.molotov.radBase;58;Радиус лужи
-weapon.molotov.radPer;14;
+weapon.molotov.radPer;14;Прибавка радиуса за уровень
 weapon.wire.tick;0,4;Проволока: период урона, сек
 weapon.wire.dmgBase;10;Урон за тик
-weapon.wire.dmgPer;8;
+weapon.wire.dmgPer;8;Прибавка урона за уровень
 weapon.wire.radBase;70;Радиус ауры
-weapon.wire.radPer;16;
+weapon.wire.radPer;16;Прибавка радиуса за уровень
 weapon.saw.dmgBase;16;Мачете: урон удара
-weapon.saw.dmgPer;10;
+weapon.saw.dmgPer;10;Прибавка урона за уровень
 weapon.saw.cd;0,35;Кулдаун повторного удара по цели
 weapon.saw.rad;78;Радиус вращения

@@ -107,7 +107,7 @@
 <div id="menu" class="overlay">
   <h1>ZOMBIE SURVIVORS</h1>
   <div class="sub">Мертвецы восстали. Ты — последний выживший в городе.<br>
-    Продержись <b style="color:#e8d878">15 минут</b> до рассвета — и эвакуационный вертолёт заберёт тебя.<br><br>
+    Доживи до <b style="color:#e8d878">рассвета</b> (15 минут) — а дальше держись сколько сможешь: орда лишь звереет. Выживай ради места в таблице рекордов.<br><br>
     Оружие стреляет само. Твоё дело — двигаться, собирать опыт и становиться сильнее.</div>
   <div class="coins" id="menuCoins"></div>
   <input id="playerName" maxlength="16" placeholder="Твоё имя для рейтинга" autocomplete="off">
@@ -163,7 +163,7 @@
 window.BALANCE = {
     "game":  {
                  "dawnTime":  900,
-                 "dawnBonus":  150,
+                 "dawnBonus":  20,
                  "bossInterval":  180,
                  "bossHp":  800,
                  "bossDmg":  42,
@@ -174,19 +174,19 @@ window.BALANCE = {
                  "poisonTickCd":  0.5
              },
     "curve":  {
-                  "hpPerMin":  1.1,
+                  "hpPerMin":  1.2,
                   "hpPerMinDawn":  1.3,
-                  "dmgPerMin":  1.05,
-                  "dmgPerMinDawn":  1.18,
-                  "dmgMax":  5,
+                  "dmgPerMin":  1.1,
+                  "dmgPerMinDawn":  1.2,
+                  "dmgMax":  10,
                   "spdPreDawn":  0.25,
                   "spdPerMinDawn":  0.09,
-                  "spdMax":  2.2,
+                  "spdMax":  10,
                   "spawnBase":  1.05,
                   "spawnDecay":  0.93,
                   "spawnDecayDawn":  0.85,
                   "spawnMin":  0.12,
-                  "spawnCountDiv":  210,
+                  "spawnCountDiv":  120,
                   "maxEnemies":  420
               },
     "enemy":  {
@@ -200,7 +200,7 @@ window.BALANCE = {
                              },
                   "runner":  {
                                  "hp":  13,
-                                 "speed":  105,
+                                 "speed":  115,
                                  "dmg":  9,
                                  "xp":  2,
                                  "from":  60,
@@ -234,11 +234,7 @@ window.BALANCE = {
     "drop":  {
                  "medChance":  0.006,
                  "magnetChance":  0.0017,
-                 "coinChance":  0.077,
-                 "coinBigChance":  0.2,
-                 "coinSmall":  1,
-                 "coinBig":  3,
-                 "bossCoin":  30,
+                 "bossCoin":  10,
                  "medHeal":  35
              },
     "player":  {
@@ -251,43 +247,43 @@ window.BALANCE = {
                      "xpFirst":  8,
                      "xpBase":  6,
                      "xpPerLevel":  9,
-                     "metaCostGrowth":  1.9
+                     "metaCostGrowth":  2
                  },
     "meta":  {
                  "damage":  {
-                                "cost":  20,
+                                "cost":  50,
                                 "max":  5,
                                 "step":  0.1
                             },
                  "hp":  {
-                            "cost":  15,
+                            "cost":  50,
                             "max":  5,
                             "step":  15
                         },
                  "armor":  {
-                               "cost":  30,
+                               "cost":  50,
                                "max":  4,
                                "step":  0.05
                            },
                  "regen":  {
-                               "cost":  25,
+                               "cost":  50,
                                "max":  3,
                                "step":  0.3
                            },
                  "speed":  {
-                               "cost":  15,
+                               "cost":  50,
                                "max":  5,
                                "step":  0.04
                            },
                  "magnet":  {
-                                "cost":  10,
+                                "cost":  100,
                                 "max":  3,
-                                "step":  0.2
+                                "step":  0
                             },
                  "greed":  {
-                               "cost":  15,
-                               "max":  3,
-                               "step":  0.25
+                               "cost":  0,
+                               "max":  0,
+                               "step":  0
                            }
              },
     "passive":  {
@@ -465,7 +461,7 @@ const META = {
   regen:  { name: 'Метаболизм',   icon: '🧬', desc: '+0.3 HP/сек регенерации' },
   speed:  { name: 'Выносливость', icon: '🏃', desc: '+4% к скорости бега' },
   magnet: { name: 'Хват',         icon: '🧲', desc: '+20% к радиусу сбора опыта' },
-  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% монет с зомби' },
+  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% ко всей добытой голде' },
 };
 for (const k in META) { META[k].cost = BAL.meta[k].cost; META[k].max = BAL.meta[k].max; }
 let meta = { coins: 0, upgrades: {} };
@@ -664,17 +660,14 @@ function killEnemy(e) {
   }
   // опыт
   gems.push({ x: e.x + rand(-6, 6), y: e.y + rand(-6, 6), v: e.xp, t: 0 });
-  // редкий лут — независимые шансы из balance.csv (drop.*)
+  // редкий лут — независимые шансы из balance.csv (drop.*). Голда с обычных зомби НЕ падает.
   const roll = Math.random();
   const d = BAL.drop;
   if (e.boss) {
-    pickups.push({ x: e.x, y: e.y, kind: 'chest' });
-    pickups.push({ x: e.x + 20, y: e.y + 10, kind: 'coin', v: d.bossCoin });
+    pickups.push({ x: e.x, y: e.y, kind: 'chest' }); // подарок с босса: апгрейд + голда при подборе
   }
   else if (roll < d.medChance) pickups.push({ x: e.x, y: e.y, kind: 'med' });
   else if (roll < d.medChance + d.magnetChance) pickups.push({ x: e.x, y: e.y, kind: 'magnet' });
-  else if (roll < d.medChance + d.magnetChance + d.coinChance)
-    pickups.push({ x: e.x, y: e.y, kind: 'coin', v: Math.random() < d.coinBigChance ? d.coinBig : d.coinSmall });
 }
 
 function hurtPlayer(dmg) {
@@ -927,17 +920,20 @@ function updateLoot(dt) {
       } else if (p.kind === 'magnet') {
         for (const g of gems) g.pulled = true;
         addDnum(player.x, player.y - 24, 'МАГНИТ!', '#60b8e8', 16);
-      } else if (p.kind === 'coin') {
-        const v = Math.round(p.v * (1 + BAL.meta.greed.step * mlvl('greed')));
-        G.money += v;
-        meta.coins += v;
-        saveMeta();
-        addDnum(player.x, player.y - 24, `+${v} 💰`, '#f0d048', 14);
       } else if (p.kind === 'chest') {
+        const v = addMoney(BAL.drop.bossCoin); // голда с босса зачисляется автоматически
+        addDnum(player.x, player.y - 40, `+${v} 💰`, '#f0d048', 16);
         openLevelUp(true);
       }
     }
   }
+}
+
+// начисление голды с учётом «жадности» — источники: босс, рассвет, (в будущем) реклама
+function addMoney(v) {
+  v = Math.round(v * (1 + BAL.meta.greed.step * mlvl('greed')));
+  G.money += v; meta.coins += v; saveMeta();
+  return v;
 }
 
 function gainXP(v) {
@@ -1124,8 +1120,7 @@ function update(dt) {
   // рассвет — чекпоинт: бонус и дальше бесконечное выживание
   if (!G.dawn && G.time >= DAWN_TIME) {
     G.dawn = true;
-    const bonus = BAL.game.dawnBonus;
-    G.money += bonus; meta.coins += bonus; saveMeta();
+    const bonus = addMoney(BAL.game.dawnBonus);
     addDnum(player.x, player.y - 70, `РАССВЕТ! +${bonus} 💰`, '#f0d048', 28);
     addDnum(player.x, player.y - 40, 'Выживай, сколько сможешь', '#e8e8d0', 15);
     sfx.levelup();

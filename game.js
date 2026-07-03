@@ -122,7 +122,7 @@ const META = {
   regen:  { name: 'Метаболизм',   icon: '🧬', desc: '+0.3 HP/сек регенерации' },
   speed:  { name: 'Выносливость', icon: '🏃', desc: '+4% к скорости бега' },
   magnet: { name: 'Хват',         icon: '🧲', desc: '+20% к радиусу сбора опыта' },
-  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% монет с зомби' },
+  greed:  { name: 'Мародёр',      icon: '💰', desc: '+25% ко всей добытой голде' },
 };
 for (const k in META) { META[k].cost = BAL.meta[k].cost; META[k].max = BAL.meta[k].max; }
 let meta = { coins: 0, upgrades: {} };
@@ -321,17 +321,14 @@ function killEnemy(e) {
   }
   // опыт
   gems.push({ x: e.x + rand(-6, 6), y: e.y + rand(-6, 6), v: e.xp, t: 0 });
-  // редкий лут — независимые шансы из balance.csv (drop.*)
+  // редкий лут — независимые шансы из balance.csv (drop.*). Голда с обычных зомби НЕ падает.
   const roll = Math.random();
   const d = BAL.drop;
   if (e.boss) {
-    pickups.push({ x: e.x, y: e.y, kind: 'chest' });
-    pickups.push({ x: e.x + 20, y: e.y + 10, kind: 'coin', v: d.bossCoin });
+    pickups.push({ x: e.x, y: e.y, kind: 'chest' }); // подарок с босса: апгрейд + голда при подборе
   }
   else if (roll < d.medChance) pickups.push({ x: e.x, y: e.y, kind: 'med' });
   else if (roll < d.medChance + d.magnetChance) pickups.push({ x: e.x, y: e.y, kind: 'magnet' });
-  else if (roll < d.medChance + d.magnetChance + d.coinChance)
-    pickups.push({ x: e.x, y: e.y, kind: 'coin', v: Math.random() < d.coinBigChance ? d.coinBig : d.coinSmall });
 }
 
 function hurtPlayer(dmg) {
@@ -584,17 +581,20 @@ function updateLoot(dt) {
       } else if (p.kind === 'magnet') {
         for (const g of gems) g.pulled = true;
         addDnum(player.x, player.y - 24, 'МАГНИТ!', '#60b8e8', 16);
-      } else if (p.kind === 'coin') {
-        const v = Math.round(p.v * (1 + BAL.meta.greed.step * mlvl('greed')));
-        G.money += v;
-        meta.coins += v;
-        saveMeta();
-        addDnum(player.x, player.y - 24, `+${v} 💰`, '#f0d048', 14);
       } else if (p.kind === 'chest') {
+        const v = addMoney(BAL.drop.bossCoin); // голда с босса зачисляется автоматически
+        addDnum(player.x, player.y - 40, `+${v} 💰`, '#f0d048', 16);
         openLevelUp(true);
       }
     }
   }
+}
+
+// начисление голды с учётом «жадности» — источники: босс, рассвет, (в будущем) реклама
+function addMoney(v) {
+  v = Math.round(v * (1 + BAL.meta.greed.step * mlvl('greed')));
+  G.money += v; meta.coins += v; saveMeta();
+  return v;
 }
 
 function gainXP(v) {
@@ -781,8 +781,7 @@ function update(dt) {
   // рассвет — чекпоинт: бонус и дальше бесконечное выживание
   if (!G.dawn && G.time >= DAWN_TIME) {
     G.dawn = true;
-    const bonus = BAL.game.dawnBonus;
-    G.money += bonus; meta.coins += bonus; saveMeta();
+    const bonus = addMoney(BAL.game.dawnBonus);
     addDnum(player.x, player.y - 70, `РАССВЕТ! +${bonus} 💰`, '#f0d048', 28);
     addDnum(player.x, player.y - 40, 'Выживай, сколько сможешь', '#e8e8d0', 15);
     sfx.levelup();

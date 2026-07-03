@@ -3,7 +3,7 @@
 window.BALANCE = {
     "game":  {
                  "dawnTime":  900,
-                 "dawnBonus":  150,
+                 "dawnBonus":  20,
                  "bossInterval":  180,
                  "bossHp":  800,
                  "bossDmg":  42,
@@ -14,19 +14,19 @@ window.BALANCE = {
                  "poisonTickCd":  0.5
              },
     "curve":  {
-                  "hpPerMin":  1.1,
+                  "hpPerMin":  1.2,
                   "hpPerMinDawn":  1.3,
-                  "dmgPerMin":  1.05,
-                  "dmgPerMinDawn":  1.18,
-                  "dmgMax":  5,
+                  "dmgPerMin":  1.1,
+                  "dmgPerMinDawn":  1.2,
+                  "dmgMax":  10,
                   "spdPreDawn":  0.25,
                   "spdPerMinDawn":  0.09,
-                  "spdMax":  2.2,
+                  "spdMax":  10,
                   "spawnBase":  1.05,
                   "spawnDecay":  0.93,
                   "spawnDecayDawn":  0.85,
                   "spawnMin":  0.12,
-                  "spawnCountDiv":  210,
+                  "spawnCountDiv":  120,
                   "maxEnemies":  420
               },
     "enemy":  {
@@ -40,7 +40,7 @@ window.BALANCE = {
                              },
                   "runner":  {
                                  "hp":  13,
-                                 "speed":  105,
+                                 "speed":  115,
                                  "dmg":  9,
                                  "xp":  2,
                                  "from":  60,
@@ -74,11 +74,7 @@ window.BALANCE = {
     "drop":  {
                  "medChance":  0.006,
                  "magnetChance":  0.0017,
-                 "coinChance":  0.077,
-                 "coinBigChance":  0.2,
-                 "coinSmall":  1,
-                 "coinBig":  3,
-                 "bossCoin":  30,
+                 "bossCoin":  10,
                  "medHeal":  35
              },
     "player":  {
@@ -91,43 +87,43 @@ window.BALANCE = {
                      "xpFirst":  8,
                      "xpBase":  6,
                      "xpPerLevel":  9,
-                     "metaCostGrowth":  1.9
+                     "metaCostGrowth":  2
                  },
     "meta":  {
                  "damage":  {
-                                "cost":  20,
+                                "cost":  50,
                                 "max":  5,
                                 "step":  0.1
                             },
                  "hp":  {
-                            "cost":  15,
+                            "cost":  50,
                             "max":  5,
                             "step":  15
                         },
                  "armor":  {
-                               "cost":  30,
+                               "cost":  50,
                                "max":  4,
                                "step":  0.05
                            },
                  "regen":  {
-                               "cost":  25,
+                               "cost":  50,
                                "max":  3,
                                "step":  0.3
                            },
                  "speed":  {
-                               "cost":  15,
+                               "cost":  50,
                                "max":  5,
                                "step":  0.04
                            },
                  "magnet":  {
-                                "cost":  10,
+                                "cost":  100,
                                 "max":  3,
-                                "step":  0.2
+                                "step":  0
                             },
                  "greed":  {
-                               "cost":  15,
-                               "max":  3,
-                               "step":  0.25
+                               "cost":  0,
+                               "max":  0,
+                               "step":  0
                            }
              },
     "passive":  {
